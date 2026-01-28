@@ -146,7 +146,7 @@
         </header>
 
         <!-- Dashboard Content -->
-        <main class="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+        <main class="p-6">
             <!-- Welcome Section -->
             <div class="mb-8">
                 <h1 class="text-3xl font-bold text-gray-900">Welcome back, {{ auth()->user()->name ?? 'User' }}!</h1>

@@ -126,7 +126,7 @@ class ProtectedAreaController extends Controller
         // Validate the request
         try {
             $validated = $request->validate([
-                'code' => 'required|string|max:20|unique:protected_areas,code',
+                'code' => 'required|string|max:255|unique:protected_areas,code',
                 'name' => 'required|string|max:255',
             ]);
             

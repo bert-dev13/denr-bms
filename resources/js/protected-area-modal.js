@@ -311,7 +311,7 @@ class ProtectedAreaModalSystem {
                     <div class="form-row single">
                         <div class="form-group">
                             <label class="form-label required">Area Code</label>
-                            <input type="text" class="form-input" name="code" value="${area.code || ''}" required maxlength="10" placeholder="e.g., PPLS">
+                            <input type="text" class="form-input" name="code" value="${area.code || ''}" required maxlength="255" placeholder="e.g., PPLS">
                         </div>
                     </div>
                     
@@ -351,7 +351,7 @@ class ProtectedAreaModalSystem {
                     <div class="form-row single">
                         <div class="form-group">
                             <label class="form-label required">Area Code</label>
-                            <input type="text" class="form-input" name="code" value="${uniqueCode}" required maxlength="20" placeholder="e.g., PA1234" pattern="[A-Z0-9]+" title="Only uppercase letters and numbers">
+                            <input type="text" class="form-input" name="code" value="${uniqueCode}" required maxlength="255" placeholder="e.g., PA1234" pattern="[A-Z0-9]+" title="Only uppercase letters and numbers">
                             <small>Unique code for the protected area (uppercase letters and numbers only)</small>
                         </div>
                     </div>
@@ -448,6 +448,9 @@ class ProtectedAreaModalSystem {
         const form = event.target;
         const formData = new FormData(form);
         
+        // Add method override for Laravel PUT support
+        formData.append('_method', 'PUT');
+        
         // Add loading state to submit button
         const submitBtn = form.querySelector('button[type="submit"]');
         const originalText = submitBtn.textContent;
@@ -464,7 +467,7 @@ class ProtectedAreaModalSystem {
             }
             
             const response = await fetch(`/protected-areas/${areaId}`, {
-                method: 'PUT',
+                method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': formData.get('_token'),
                     'X-Requested-With': 'XMLHttpRequest',
@@ -585,13 +588,17 @@ class ProtectedAreaModalSystem {
 
     async confirmDelete(areaId) {
         try {
+            const formData = new FormData();
+            formData.append('_method', 'DELETE');
+            formData.append('_token', document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'));
+            
             const response = await fetch(`/protected-areas/${areaId}`, {
-                method: 'DELETE',
+                method: 'POST',
                 headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
                     'X-Requested-With': 'XMLHttpRequest',
                     'Accept': 'application/json'
-                }
+                },
+                body: formData
             });
 
             const result = await response.json();
@@ -844,7 +851,8 @@ function confirmDeleteProtectedArea(areaId) {
     }
 }
 
-// Attach functions to window object for global access
+// Attach class and functions to window object for global access
+window.ProtectedAreaModalSystem = ProtectedAreaModalSystem;
 window.openViewModal = openViewModal;
 window.openEditModal = openEditModal;
 window.openAddModal = openAddModal;
