@@ -15,10 +15,10 @@
     <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
 
     <!-- Styles -->
-    @vite(['resources/css/app.css', 'resources/css/sidebar.css'])
+    @vite(['resources/css/app.css', 'resources/css/sidebar.css', 'resources/css/protected-area-modal.css'])
     
     <!-- Scripts -->
-    @vite(['resources/js/bootstrap.js', 'resources/js/sidebar.js'])
+    @vite(['resources/js/bootstrap.js', 'resources/js/sidebar.js', 'resources/js/protected-area-modal.js'])
     
     <!-- Global JavaScript Variables -->
     <script>
@@ -152,6 +152,7 @@
 
                     <!-- Right Side Actions -->
                     <div class="flex items-center space-x-4">
+                        <!-- Add Protected Area button moved to table section -->
                     </div>
                 </div>
             </div>
@@ -184,7 +185,7 @@
                         </div>
                         <div class="ml-4">
                             <p class="text-sm text-gray-600">Total Areas</p>
-                            <p class="text-2xl font-bold text-gray-900">{{ number_format($stats['total_areas']) }}</p>
+                            <p class="text-2xl font-bold text-gray-900" id="total-areas-count">{{ number_format($stats['total_areas']) }}</p>
                         </div>
                     </div>
                 </div>
@@ -317,11 +318,17 @@
                             </div>
                         </div>
 
-                        <!-- Title only -->
+                        <!-- Title and Add Button -->
                         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                             <h2 class="text-lg font-semibold text-gray-900">
                                 Protected Areas ({{ $protectedAreas->total() }} records)
                             </h2>
+                            <button onclick="openAddModal()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg inline-flex items-center space-x-2 transition-colors flex-shrink-0">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                </svg>
+                                <span>Add Protected Area</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -350,7 +357,7 @@
                         </thead>
                         <tbody id="protected-area-table-body">
                             @forelse ($protectedAreas as $area)
-                                <tr class="hover:bg-gray-50 protected-area-row">
+                                <tr class="hover:bg-gray-50 protected-area-row" data-area-id="{{ $area->id }}">
                                     <td>
                                         <div class="font-medium text-gray-900">
                                             {{ $area->code }}
@@ -383,7 +390,35 @@
                                         @endif
                                     </td>
                                     <td>
-                                        <!-- Actions column empty - modals removed -->
+                                        <div class="flex items-center gap-1 sm:gap-2 action-buttons-container">
+                                            <!-- View Button -->
+                                            <button type="button" onclick="openViewModal({{ $area->id }})" 
+                                               class="action-btn view p-1.5 sm:p-1 rounded transition-colors flex-shrink-0"
+                                               title="View Protected Area">
+                                                <svg class="w-4 h-4 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                                </svg>
+                                            </button>
+                                            
+                                             <!-- Edit Button -->
+                                            <button type="button" onclick="openEditModal({{ $area->id }})" 
+                                               class="action-btn edit p-1.5 sm:p-1 rounded transition-colors flex-shrink-0"
+                                               title="Edit Protected Area">
+                                                <svg class="w-4 h-4 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                                </svg>
+                                            </button>
+                                            
+                                            <!-- Delete Button -->
+                                            <button type="button" onclick="openDeleteModal({{ $area->id }})" 
+                                               class="action-btn delete p-1.5 sm:p-1 rounded transition-colors flex-shrink-0"
+                                               title="Delete Protected Area">
+                                                <svg class="w-4 h-4 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                                </svg>
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             @empty
@@ -405,16 +440,65 @@
                 </div>
 
                 <!-- Pagination -->
-                @if($protectedAreas->hasPages())
-                    <div class="px-6 py-4 border-t border-gray-200">
+                <div class="px-6 py-4 border-t border-gray-200">
+                    <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <!-- Results Information -->
+                        <div class="text-sm text-gray-700">
+                            Showing 
+                            {{ ($protectedAreas->currentPage() - 1) * $protectedAreas->perPage() + 1 }} 
+                            to 
+                            {{ min($protectedAreas->currentPage() * $protectedAreas->perPage(), $protectedAreas->total()) }} 
+                            of {{ $protectedAreas->total() }} results
+                        </div>
+                        
+                        <!-- Custom Previous/Next Navigation -->
+                        <div class="flex items-center space-x-2">
+                            <!-- Previous Button -->
+                            @if($protectedAreas->onFirstPage())
+                                <button class="px-3 py-1 text-sm text-gray-400 bg-gray-100 border border-gray-300 rounded-md cursor-not-allowed" disabled>
+                                    « Previous
+                                </button>
+                            @else
+                                <a href="{{ $protectedAreas->previousPageUrl() }}" 
+                                   class="px-3 py-1 text-sm text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">
+                                    « Previous
+                                </a>
+                            @endif
+                            
+                            <!-- Next Button -->
+                            @if($protectedAreas->hasMorePages())
+                                <a href="{{ $protectedAreas->nextPageUrl() }}" 
+                                   class="px-3 py-1 text-sm text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">
+                                    Next »
+                                </a>
+                            @else
+                                <button class="px-3 py-1 text-sm text-gray-400 bg-gray-100 border border-gray-300 rounded-md cursor-not-allowed" disabled>
+                                    Next »
+                                </button>
+                            @endif
+                        </div>
+                    </div>
+                    
+                    <!-- Laravel Pagination Links (hidden but kept for functionality) -->
+                    <div class="hidden">
                         {{ $protectedAreas->links() }}
                     </div>
-                @endif
+                </div>
             </div>
         </main>
     </div>
 
 <script>
+// Ensure modal system is initialized
+function ensureModalSystem() {
+    // Only initialize if the class exists (for existing modal system)
+    if (typeof ProtectedAreaModalSystem !== 'undefined') {
+        if (!window.protectedAreaModalSystem) {
+            window.protectedAreaModalSystem = new ProtectedAreaModalSystem();
+        }
+    }
+}
+
 function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.querySelector('.sidebar-overlay');
@@ -480,6 +564,11 @@ function clearProtectedAreaSearch() {
     input.value = '';
     filterProtectedAreasTable();
 }
+
+// Initialize modal system when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    ensureModalSystem();
+});
 
 </script>
 

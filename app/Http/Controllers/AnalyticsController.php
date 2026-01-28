@@ -30,7 +30,41 @@ class AnalyticsController extends Controller
     public function index()
     {
         $protectedAreas = ProtectedArea::orderBy('name')->get();
-        return view('analytics', compact('protectedAreas'));
+        
+        // Calculate total observations across all tables
+        $tables = ['batanes_tbl', 'baua_tbl', 'fuyot_tbl', 'magapit_tbl', 'palaui_tbl', 'quirino_tbl', 'mariano_tbl', 'madupapa_tbl', 'wangag_tbl', 'toyota_tbl', 'manga_tbl', 'quibal_tbl', 'madre_tbl', 'tumauini_tbl', 'bangan_tbl', 'salinas_tbl', 'dupax_tbl', 'casecnan_tbl', 'dipaniong_tbl', 'roque_tbl'];
+        
+        $totalObservations = 0;
+        foreach ($tables as $table) {
+            try {
+                $totalObservations += \DB::table($table)->count();
+            } catch (\Exception $e) {
+                // Skip tables that don't exist
+                continue;
+            }
+        }
+
+        // Calculate species diversity across all tables (true unique species)
+        $allScientificNames = collect();
+        foreach ($tables as $table) {
+            try {
+                $species = \DB::table($table)->pluck('scientific_name')->filter();
+                $allScientificNames = $allScientificNames->merge($species);
+            } catch (\Exception $e) {
+                // Skip tables that don't exist
+                continue;
+            }
+        }
+        $speciesDiversity = $allScientificNames->unique()->count();
+
+        $stats = [
+            'total_areas' => ProtectedArea::count(),
+            'total_sites' => \App\Models\SiteName::count(),
+            'total_observations' => $totalObservations,
+            'species_diversity' => $speciesDiversity,
+        ];
+        
+        return view('analytics', compact('protectedAreas', 'stats'));
     }
 
     public function getObservationData(Request $request)

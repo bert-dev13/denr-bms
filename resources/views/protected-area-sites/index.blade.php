@@ -231,19 +231,96 @@
                 </div>
             </div>
 
+            <!-- Filters Section -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+                <form method="GET" action="{{ route('protected-area-sites.index') }}">
+                    <div class="flex items-center mb-4">
+                        <h2 class="text-lg font-semibold text-gray-900 flex-1">Filters</h2>
+                        <div class="flex gap-2">
+                            <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors whitespace-nowrap text-sm font-medium">
+                                Apply
+                            </button>
+                            <button type="button" onclick="clearSiteFilters()" class="bg-white hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg transition-colors whitespace-nowrap text-sm font-medium border border-gray-300">
+                                Clear
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <!-- Status Dropdown -->
+                        <div class="w-full">
+                            <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                            <select name="status" id="status" class="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm">
+                                <option value="">All</option>
+                                <option value="active" {{ (isset($statusFilter) && $statusFilter === 'active') ? 'selected' : '' }}>Active</option>
+                                <option value="no_data" {{ (isset($statusFilter) && $statusFilter === 'no_data') ? 'selected' : '' }}>No Data</option>
+                            </select>
+                        </div>
+
+                        <!-- Sort By Dropdown -->
+                        <div class="w-full">
+                            <label for="sort" class="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
+                            <select name="sort" id="sort" class="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm">
+                                <option value="name" {{ (!isset($sort) || $sort === 'name') ? 'selected' : '' }}>Name (A–Z)</option>
+                                <option value="protected_area" {{ (isset($sort) && $sort === 'protected_area') ? 'selected' : '' }}>Protected Area (A–Z)</option>
+                            </select>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
             <!-- Protected Area Sites Table -->
             <div class="bg-white rounded-lg shadow-sm border border-gray-200">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <div class="flex items-center justify-between">
-                        <h2 class="text-lg font-semibold text-gray-900">
-                            Protected Area Sites ({{ $stats['total_sites'] }} records)
-                        </h2>
-                        <div class="text-sm text-gray-600">
-                            @if(method_exists($siteNames, 'firstItem') && $siteNames->count() > 0)
-                                Showing {{ $siteNames->firstItem() }} to {{ $siteNames->lastItem() }} of {{ $stats['total_sites'] }} entries
-                            @elseif($siteNames->count() > 0)
-                                Showing {{ $siteNames->count() }} of {{ $stats['total_sites'] }} entries
-                            @endif
+                <!-- Search + Header -->
+                <div class="px-6 py-4 border-b border-gray-200 relative">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <!-- Search Bar on Left -->
+                        <div class="flex items-center space-x-2">
+                            <!-- Search Input -->
+                            <div class="relative">
+                                <input 
+                                    type="text" 
+                                    id="site-search" 
+                                    name="search"
+                                    value="{{ request('search', '') }}"
+                                    class="w-full sm:w-64 pl-8 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
+                                    placeholder="Search protected area sites..."
+                                    autocomplete="off"
+                                    oninput="filterSitesTable()"
+                                />
+
+                                <!-- Search Icon -->
+                                <svg class="absolute left-2.5 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+
+                                <!-- Clear Button -->
+                                <button
+                                    id="site-search-clear"
+                                    type="button"
+                                    class="absolute right-0 top-0 bottom-0 flex items-center justify-center w-8
+                                           text-gray-400 hover:text-gray-600 hidden bg-transparent"
+                                    onclick="clearSiteSearch()"
+                                    style="right: 2px;"
+                                >
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Title and Record Count on Right -->
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                            <h2 class="text-lg font-semibold text-gray-900">
+                                Protected Area Sites ({{ $siteNames->total() }} records)
+                            </h2>
+                            <button onclick="openEditSiteModal()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg inline-flex items-center space-x-2 transition-colors flex-shrink-0">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                </svg>
+                                <span>Add Protected Area Site</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -381,11 +458,50 @@
             </div>
 
                 <!-- Pagination -->
-                @if(method_exists($siteNames, 'hasPages') && $siteNames->hasPages())
-                    <div class="px-6 py-4 border-t border-gray-200">
+                <div class="px-6 py-4 border-t border-gray-200">
+                    <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <!-- Results Information -->
+                        <div class="text-sm text-gray-700">
+                            Showing 
+                            {{ ($siteNames->currentPage() - 1) * $siteNames->perPage() + 1 }} 
+                            to 
+                            {{ min($siteNames->currentPage() * $siteNames->perPage(), $siteNames->total()) }} 
+                            of {{ $siteNames->total() }} results
+                        </div>
+                        
+                        <!-- Custom Previous/Next Navigation -->
+                        <div class="flex items-center space-x-2">
+                            <!-- Previous Button -->
+                            @if($siteNames->onFirstPage())
+                                <button class="px-3 py-1 text-sm text-gray-400 bg-gray-100 border border-gray-300 rounded-md cursor-not-allowed" disabled>
+                                    « Previous
+                                </button>
+                            @else
+                                <a href="{{ $siteNames->previousPageUrl() }}" 
+                                   class="px-3 py-1 text-sm text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">
+                                    « Previous
+                                </a>
+                            @endif
+                            
+                            <!-- Next Button -->
+                            @if($siteNames->hasMorePages())
+                                <a href="{{ $siteNames->nextPageUrl() }}" 
+                                   class="px-3 py-1 text-sm text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">
+                                    Next »
+                                </a>
+                            @else
+                                <button class="px-3 py-1 text-sm text-gray-400 bg-gray-100 border border-gray-300 rounded-md cursor-not-allowed" disabled>
+                                    Next »
+                                </button>
+                            @endif
+                        </div>
+                    </div>
+                    
+                    <!-- Laravel Pagination Links (hidden but kept for functionality) -->
+                    <div class="hidden">
                         {{ $siteNames->links() }}
                     </div>
-                @endif
+                </div>
             </div>
         </main>
     </div>
@@ -723,6 +839,40 @@ function confirmDeleteSiteAction() {
         confirmBtn.disabled = false;
         confirmBtn.textContent = 'Yes';
     });
+}
+
+// Clear filters (status + sort)
+function clearSiteFilters() {
+    const status = document.getElementById('status');
+    const sort = document.getElementById('sort');
+    if (status) status.value = '';
+    if (sort) sort.value = 'name';
+
+    // Submit the form to reset filters
+    status.closest('form').submit();
+}
+
+// Client-side search over sites table
+function filterSitesTable() {
+    const input = document.getElementById('site-search');
+    const clearBtn = document.getElementById('site-search-clear');
+    const filter = input.value.toLowerCase();
+    const rows = document.querySelectorAll('.responsive-table tbody tr');
+
+    if (clearBtn) {
+        clearBtn.classList.toggle('hidden', filter.length === 0);
+    }
+
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(filter) ? '' : 'none';
+    });
+}
+
+function clearSiteSearch() {
+    const input = document.getElementById('site-search');
+    input.value = '';
+    filterSitesTable();
 }
 </script>
 

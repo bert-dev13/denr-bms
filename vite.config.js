@@ -12,11 +12,13 @@ export default defineConfig({
                 'resources/css/species-observation-modal.css',
                 'resources/css/species-observations.css',
                 'resources/css/protected-areas.css',
+                'resources/css/protected-area-modal.css',
                 'resources/js/bootstrap.js', 
                 'resources/js/Login.js', 
                 'resources/js/sidebar.js', 
                 'resources/js/species-observation-modal.js',
-                'resources/js/species-observations.js'
+                'resources/js/species-observations.js',
+                'resources/js/protected-area-modal.js'
             ],
             refresh: true,
         }),

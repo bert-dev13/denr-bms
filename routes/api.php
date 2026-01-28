@@ -47,3 +47,27 @@ Route::post('/login', function (Request $request) {
         ]
     ], 401);
 });
+
+// Protected Areas API Routes
+Route::get('/protected-areas/data/{id}', function ($id) {
+    try {
+        $area = \App\Models\ProtectedArea::withCount('speciesObservations')->find($id);
+        
+        if (!$area) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Protected area not found'
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'area' => $area
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => 'Failed to load protected area data: ' . $e->getMessage()
+        ], 500);
+    }
+});

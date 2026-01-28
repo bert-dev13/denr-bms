@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 // Import all observation models
 use App\Models\BanganObservation;
@@ -92,6 +93,7 @@ class ProtectedArea extends Model
     // Get total observation count across all tables
     public function getTotalObservationsCount()
     {
+        // First try the hardcoded mappings (for existing areas)
         $observationModels = [
             'BPLS' => BmsSpeciesObservation::class,
             'BWFR' => BauaObservation::class,
@@ -116,6 +118,7 @@ class ProtectedArea extends Model
 
         $totalCount = 0;
         
+        // Check hardcoded mappings first
         foreach ($observationModels as $areaCode => $modelClass) {
             if ($this->code === $areaCode) {
                 if (is_array($modelClass)) {
@@ -134,6 +137,18 @@ class ProtectedArea extends Model
                         continue;
                     }
                 }
+            }
+        }
+        
+        // If no hardcoded mapping found, try dynamic table approach
+        if ($totalCount === 0) {
+            try {
+                $tableName = strtolower($this->code) . '_tbl';
+                if (Schema::hasTable($tableName)) {
+                    $totalCount += DB::table($tableName)->count();
+                }
+            } catch (\Exception $e) {
+                // Table doesn't exist or error occurred
             }
         }
 
