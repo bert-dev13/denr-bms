@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class SiteName extends Model
 {
-    protected $fillable = ['name', 'protected_area_id'];
+    protected $fillable = ['name', 'protected_area_id', 'station_code'];
 
     /**
      * Get the protected area that owns the site name
@@ -17,11 +17,16 @@ class SiteName extends Model
     }
 
     /**
-     * Get the station code mapping for this site
+     * Get the station code for this site (from database or fallback to hardcoded mapping)
      */
     public function getStationCodeAttribute()
     {
-        // Map site names to their corresponding station codes
+        // First try to get from database
+        if ($this->attributes['station_code'] ?? null) {
+            return $this->attributes['station_code'];
+        }
+
+        // Fallback to hardcoded mappings for existing sites
         $mappings = [
             'PPLS Site 1 – Toyota Project, Cabasan, Peñablanca, Cagayan' => 'TOYOTA-S1',
             'PPLS Site 2 – Sitio Spring, San Roque, Peñablanca, Cagayan' => 'SANROQUE-S1',

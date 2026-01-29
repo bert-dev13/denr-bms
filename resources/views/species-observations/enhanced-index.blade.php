@@ -188,12 +188,19 @@
 
             <!-- Error Message -->
             @if (session('error'))
-                <div class="mb-6 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
-                    <div class="flex items-center">
-                        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
-                        </svg>
-                        {{ session('error') }}
+                <div id="error-message" class="mb-6 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                            </svg>
+                            {{ session('error') }}
+                        </div>
+                        <button type="button" onclick="dismissErrorMessage()" class="text-red-600 hover:text-red-800">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                            </svg>
+                        </button>
                     </div>
                 </div>
             @endif
@@ -328,15 +335,61 @@
             </div>
 
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <h2 class="text-lg font-semibold text-gray-900">
-                    Observations ({{ $observations->total() }} records)
-                </h2>
-                <button onclick="window.openAddModal()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg inline-flex items-center space-x-2 transition-colors flex-shrink-0 w-full sm:w-auto justify-center">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                    </svg>
-                    <span>Add Observation</span>
-                </button>
+                <!-- Left: Table Title -->
+                <div class="flex-shrink-0 order-1 sm:order-1">
+                    <h2 class="text-lg font-semibold text-gray-900">
+                        Observations ({{ $observations->total() }} records)
+                    </h2>
+                </div>
+                
+                <!-- Center: Export Dropdown -->
+                <div class="flex-shrink-0 order-3 sm:order-2">
+                    <div class="relative">
+                        <button type="button" id="export-dropdown-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg inline-flex items-center space-x-2 transition-colors w-full sm:w-auto justify-center">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            <span>Export</span>
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+                        
+                        <!-- Dropdown Menu -->
+                        <div id="export-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50 sm:right-0 right-auto left-0 sm:left-auto">
+                            <div class="py-1">
+                                <button type="button" onclick="exportTable('print')" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                                    </svg>
+                                    <span>Print</span>
+                                </button>
+                                <button type="button" onclick="exportTable('excel')" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v1a1 1 0 001 1h4a1 1 0 001-1v-1m3-2V8a2 2 0 00-2-2H8a2 2 0 00-2 2v7m3-2h6"></path>
+                                    </svg>
+                                    <span>Excel</span>
+                                </button>
+                                <button type="button" onclick="exportTable('pdf')" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                                    </svg>
+                                    <span>PDF</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Right: Add Observation Button -->
+                <div class="flex-shrink-0 order-2 sm:order-3">
+                    <button onclick="window.openAddModal()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg inline-flex items-center space-x-2 transition-colors w-full sm:w-auto justify-center">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        <span>Add Observation</span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -505,6 +558,7 @@
                 font-weight: 500;
                 max-width: 400px;
                 color: white;
+                transition: opacity 0.3s ease-in-out;
             `;
             
             if (type === 'success') {
@@ -516,9 +570,13 @@
             notification.textContent = message;
             document.body.appendChild(notification);
             
+            // Auto-dismiss after 5 seconds
             setTimeout(() => {
-                notification.remove();
-            }, 3000);
+                notification.style.opacity = '0';
+                setTimeout(() => {
+                    notification.remove();
+                }, 300);
+            }, 5000);
         }
 
         // Close sidebar when clicking outside on mobile
@@ -756,6 +814,14 @@
             initializeDropdownState();
             initializeSearch();
             
+            // Auto-dismiss error message after 5 seconds
+            const errorMessage = document.getElementById('error-message');
+            if (errorMessage) {
+                setTimeout(() => {
+                    dismissErrorMessage();
+                }, 5000);
+            }
+            
             // Populate search input from URL parameters
             const urlParams = new URLSearchParams(window.location.search);
             const searchQuery = urlParams.get('search');
@@ -764,6 +830,18 @@
                 document.getElementById('search-clear').classList.remove('hidden');
             }
         });
+
+        // Dismiss error message function
+        function dismissErrorMessage() {
+            const errorMessage = document.getElementById('error-message');
+            if (errorMessage) {
+                errorMessage.style.transition = 'opacity 0.3s ease-in-out';
+                errorMessage.style.opacity = '0';
+                setTimeout(() => {
+                    errorMessage.remove();
+                }, 300);
+            }
+        }
 
         // Search functionality
         let searchTimeout;
@@ -913,6 +991,75 @@
                 siteNameSelect.disabled = true;
             }
         });
+
+        // Export dropdown functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const exportDropdownBtn = document.getElementById('export-dropdown-btn');
+            const exportDropdown = document.getElementById('export-dropdown');
+            
+            // Toggle dropdown
+            exportDropdownBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                exportDropdown.classList.toggle('hidden');
+            });
+            
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!exportDropdown.contains(e.target) && e.target !== exportDropdownBtn) {
+                    exportDropdown.classList.add('hidden');
+                }
+            });
+        });
+
+        // Export functionality
+        function exportTable(format) {
+            // Get current filter parameters
+            const form = document.querySelector('form[method="GET"]');
+            const formData = new FormData(form);
+            const params = new URLSearchParams(formData);
+            
+            // Add export format parameter
+            params.set('export', format);
+            
+            // Get current search query if exists
+            const searchInput = document.getElementById('table-search');
+            if (searchInput.value.trim()) {
+                params.set('search', searchInput.value.trim());
+            }
+            
+            // Construct export URL
+            const exportUrl = window.location.pathname + '?' + params.toString();
+            
+            switch(format) {
+                case 'print':
+                    // Open print-friendly version in new window
+                    const printWindow = window.open(exportUrl + '&print=1', '_blank');
+                    if (printWindow) {
+                        printWindow.onload = function() {
+                            printWindow.print();
+                        };
+                    }
+                    break;
+                    
+                case 'excel':
+                    // Download Excel file
+                    window.location.href = exportUrl + '&excel=1';
+                    showNotification('Excel export started. Download will begin shortly.', 'success');
+                    break;
+                    
+                case 'pdf':
+                    // Download PDF file
+                    window.location.href = exportUrl + '&pdf=1';
+                    showNotification('PDF export started. Download will begin shortly.', 'success');
+                    break;
+                    
+                default:
+                    showNotification('Invalid export format', 'error');
+            }
+            
+            // Close dropdown
+            document.getElementById('export-dropdown').classList.add('hidden');
+        }
     </script>
 </body>
 </html>

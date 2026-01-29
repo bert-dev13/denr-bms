@@ -48,6 +48,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/api/protected-areas/{id}', [ProtectedAreaController::class, 'getProtectedAreaData'])->name('protected-areas.data');
     
     // Protected area sites routes
+    Route::post('/protected-area-sites', [ProtectedAreaController::class, 'storeSite'])->name('protected-area-sites.store');
     Route::get('/protected-area-sites/{siteName}', [ProtectedAreaController::class, 'showSite'])->name('protected-area-sites.show');
     Route::get('/protected-area-sites/{siteName}/edit', [ProtectedAreaController::class, 'editSite'])->name('protected-area-sites.edit');
     Route::put('/protected-area-sites/{siteName}', [ProtectedAreaController::class, 'updateSite'])->name('protected-area-sites.update');

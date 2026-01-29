@@ -631,15 +631,32 @@ class ProtectedAreaController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'protected_area_id' => 'nullable|exists:protected_areas,id',
+            'station_code' => 'nullable|string|max:60',
         ]);
 
         try {
             $siteName->update($validated);
             
+            // Load protected area relationship for response
+            $siteName->load('protectedArea');
+            
             if ($request->expectsJson() || $request->wantsJson()) {
                 return response()->json([
                     'success' => true,
-                    'message' => 'Site updated successfully.'
+                    'message' => 'Site updated successfully.',
+                    'siteName' => [
+                        'id' => $siteName->id,
+                        'name' => $siteName->name,
+                        'protected_area_id' => $siteName->protected_area_id,
+                        'protected_area' => $siteName->protectedArea ? [
+                            'id' => $siteName->protectedArea->id,
+                            'name' => $siteName->protectedArea->name,
+                            'code' => $siteName->protectedArea->code,
+                        ] : null,
+                        'station_code' => $siteName->station_code,
+                        'created_at' => $siteName->created_at,
+                        'updated_at' => $siteName->updated_at,
+                    ]
                 ]);
             }
             
@@ -670,17 +687,212 @@ class ProtectedAreaController extends Controller
     }
 
     /**
+     * Create a safe table name from site name
+     */
+    private function createSafeSiteTableName($siteName, $siteId)
+    {
+        // Extract first few words and convert to safe format
+        $words = explode(' ', $siteName);
+        $safeName = '';
+        
+        // Take first 2-3 words, max 8 characters each
+        $wordCount = min(3, count($words));
+        for ($i = 0; $i < $wordCount; $i++) {
+            $word = preg_replace('/[^a-zA-Z0-9]/', '', $words[$i]);
+            $safeName .= strtolower(substr($word, 0, 8));
+        }
+        
+        // If too short, use site ID
+        if (strlen($safeName) < 3) {
+            $safeName = 'site' . $siteId;
+        }
+        
+        // Add site_tbl suffix
+        return $safeName . '_site_tbl';
+    }
+
+    /**
+     * Create observation table for the protected area site
+     */
+    private function createSiteObservationTable($tableName, $siteId)
+    {
+        try {
+            \Log::info("Creating site observation table: {$tableName}");
+            
+            // Check if table already exists
+            if (Schema::hasTable($tableName)) {
+                \Log::info("Site observation table {$tableName} already exists, skipping creation.");
+                return;
+            }
+
+            // Create the table
+            Schema::create($tableName, function (Blueprint $table) use ($siteId) {
+                $table->id();
+                
+                // Foreign key to site names
+                $table->unsignedBigInteger('site_name_id');
+                
+                // Standard observation columns
+                $table->string('transaction_code', 50);
+                $table->string('station_code', 60);
+                $table->year('patrol_year');
+                $table->unsignedTinyInteger('patrol_semester'); // 1 or 2
+                $table->enum('bio_group', ['fauna', 'flora']);
+                $table->string('common_name', 150);
+                $table->string('scientific_name', 200)->nullable();
+                $table->unsignedInteger('recorded_count');
+                
+                $table->timestamps();
+                
+                // Foreign key constraint
+                $table->foreign('site_name_id')
+                      ->references('id')
+                      ->on('site_names')
+                      ->onDelete('cascade');
+            });
+            
+            \Log::info("Successfully created site observation table: {$tableName}");
+            
+        } catch (\Exception $e) {
+            \Log::error("Failed to create site observation table {$tableName}: " . $e->getMessage());
+            
+            // Don't throw the error - log it and continue
+            // The site was still created successfully
+            return;
+        }
+    }
+
+    /**
+     * Store a newly created protected area site.
+     */
+    public function storeSite(Request $request)
+    {
+        // Log request details for debugging
+        \Log::info('ProtectedAreaSite store called', [
+            'method' => $request->method(),
+            'ajax' => $request->ajax(),
+            'wants_json' => $request->wantsJson(),
+            'expects_json' => $request->expectsJson(),
+            'user_authenticated' => auth()->check(),
+            'user_id' => auth()->id(),
+            'has_name' => $request->has('name'),
+            'has_protected_area_id' => $request->has('protected_area_id'),
+            'headers' => [
+                'x-requested-with' => $request->header('X-Requested-With'),
+                'accept' => $request->header('Accept'),
+                'x-csrf-token' => $request->header('X-CSRF-TOKEN') ? 'present' : 'missing'
+            ]
+        ]);
+
+        // Check if this is an AJAX request
+        $isAjax = $request->ajax() || $request->wantsJson() || $request->expectsJson();
+
+        // Validate the request
+        try {
+            $validated = $request->validate([
+                'name' => 'required|string|max:255',
+                'protected_area_id' => 'nullable|exists:protected_areas,id',
+                'station_code' => 'nullable|string|max:60',
+            ]);
+            
+            \Log::info('Site validation passed', ['validated' => $validated]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('Site validation failed', ['errors' => $e->errors()]);
+            
+            if ($isAjax) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Validation failed.',
+                    'errors' => $e->errors(),
+                ], 422);
+            }
+            throw $e;
+        }
+
+        try {
+            // Create the site
+            $siteName = SiteName::create($validated);
+            
+            // Load protected area relationship for response
+            $siteName->load('protectedArea');
+            
+            // Create a safe table name based on site name
+            $tableName = $this->createSafeSiteTableName($siteName->name, $siteName->id);
+            
+            // Create the observation table for the site
+            $this->createSiteObservationTable($tableName, $siteName->id);
+
+            // Return JSON response for AJAX requests
+            if ($isAjax) {
+                \Log::info('Returning site JSON response', [
+                    'success' => true,
+                    'site_id' => $siteName->id,
+                    'site_name' => $siteName->name,
+                    'table_name' => $tableName
+                ]);
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Site created successfully with observation table.',
+                    'siteName' => [
+                        'id' => $siteName->id,
+                        'name' => $siteName->name,
+                        'protected_area_id' => $siteName->protected_area_id,
+                        'protected_area' => $siteName->protectedArea ? [
+                            'id' => $siteName->protectedArea->id,
+                            'name' => $siteName->protectedArea->name,
+                            'code' => $siteName->protectedArea->code,
+                        ] : null,
+                        'station_code' => $siteName->station_code,
+                        'created_at' => $siteName->created_at,
+                        'updated_at' => $siteName->updated_at,
+                    ],
+                    'table_name' => $tableName
+                ]);
+            }
+
+            \Log::info('Not AJAX, returning redirect');
+            // Return redirect for regular form submissions
+            return redirect()
+                ->route('protected-area-sites.index')
+                ->with('success', 'Site created successfully with observation table.');
+                
+        } catch (\Exception $e) {
+            \Log::error('Failed to create site: ' . $e->getMessage());
+            
+            if ($isAjax) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Failed to create site: ' . $e->getMessage(),
+                ], 500);
+            }
+
+            return back()
+                ->with('error', 'Failed to create site.')
+                ->withInput();
+        }
+    }
+
+    /**
      * Remove the specified protected area site from storage.
      */
     public function destroySite(SiteName $siteName)
     {
         try {
+            // Get the site table name before deletion
+            $tableName = $this->createSafeSiteTableName($siteName->name, $siteName->id);
+            
+            // Delete the site
             $siteName->delete();
+            
+            // Try to drop the observation table
+            $this->dropSiteObservationTable($tableName);
             
             if (request()->expectsJson() || request()->wantsJson()) {
                 return response()->json([
                     'success' => true,
-                    'message' => 'Site deleted successfully.'
+                    'message' => 'Site deleted successfully.',
+                    'table_dropped' => $tableName
                 ]);
             }
             
@@ -697,6 +909,24 @@ class ProtectedAreaController extends Controller
             }
             
             return back()->with('error', 'Failed to delete site.');
+        }
+    }
+
+    /**
+     * Drop observation table for a deleted site
+     */
+    private function dropSiteObservationTable($tableName)
+    {
+        try {
+            if (Schema::hasTable($tableName)) {
+                Schema::dropIfExists($tableName);
+                \Log::info("Successfully dropped site observation table: {$tableName}");
+            } else {
+                \Log::info("Site observation table {$tableName} does not exist, skipping drop.");
+            }
+        } catch (\Exception $e) {
+            \Log::error("Failed to drop site observation table {$tableName}: " . $e->getMessage());
+            // Don't throw - the site was still deleted successfully
         }
     }
 }

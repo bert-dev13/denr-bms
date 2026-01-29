@@ -304,13 +304,11 @@ class ModalSystem {
         
         // Check if a protected area is already selected
         if (protectedAreaSelect.value) {
-            const selectedOption = protectedAreaSelect.options[protectedAreaSelect.selectedIndex];
-            const areaCode = selectedOption.getAttribute('data-code');
             const selectedAreaId = protectedAreaSelect.value;
             
-            if ((areaCode === 'PPLS' || areaCode === 'MPL') && selectedAreaId) {
-                await this.loadModalSiteNames(selectedAreaId);
-            }
+            // Load site names for the selected protected area
+            // The dropdown will be enabled only if sites exist
+            await this.loadModalSiteNames(selectedAreaId);
         } else {
             // Ensure site name dropdown is disabled by default
             siteNameSelect.disabled = true;
@@ -323,11 +321,9 @@ class ModalSystem {
         
         if (!protectedAreaSelect || !siteNameSelect) return;
         
-        const selectedOption = protectedAreaSelect.options[protectedAreaSelect.selectedIndex];
-        const areaCode = selectedOption.getAttribute('data-code');
         const selectedAreaId = protectedAreaSelect.value;
         
-        if ((areaCode === 'PPLS' || areaCode === 'MPL') && selectedAreaId) {
+        if (selectedAreaId) {
             // Load site names and then set the current value
             await this.loadModalSiteNames(selectedAreaId);
             
@@ -766,7 +762,7 @@ class ModalSystem {
         `;
     }
 
-    handleProtectedAreaChange(selectElement) {
+    async handleProtectedAreaChange(selectElement) {
         const siteNameSelect = document.getElementById('modal_site_name');
         const selectedOption = selectElement.options[selectElement.selectedIndex];
         const areaCode = selectedOption.getAttribute('data-code');
@@ -777,13 +773,14 @@ class ModalSystem {
             return;
         }
         
-        // Clear current site name options
+        // Clear current site name options and disable by default
         siteNameSelect.innerHTML = '<option value="">No specific site</option>';
         siteNameSelect.disabled = true;
         
-        if ((areaCode === 'PPLS' || areaCode === 'MPL') && selectedAreaId) {
-            // Load site names for PPLS and MPL areas
-            this.loadModalSiteNames(selectedAreaId);
+        if (selectedAreaId) {
+            // Load site names for the selected protected area
+            // The API will return empty array if no sites exist, keeping dropdown disabled
+            await this.loadModalSiteNames(selectedAreaId);
         }
     }
 
@@ -822,21 +819,30 @@ class ModalSystem {
             noSpecificSiteOption.textContent = 'No specific site';
             fragment.appendChild(noSpecificSiteOption);
             
-            // Add site name options
-            siteNames.forEach(siteName => {
-                const option = document.createElement('option');
-                option.value = siteName.id;
-                option.textContent = siteName.name;
-                fragment.appendChild(option);
-            });
+            // Add site name options only if sites exist
+            if (siteNames && siteNames.length > 0) {
+                siteNames.forEach(siteName => {
+                    const option = document.createElement('option');
+                    option.value = siteName.id;
+                    option.textContent = siteName.name;
+                    fragment.appendChild(option);
+                });
+                
+                // Enable dropdown only if sites exist
+                siteNameSelect.disabled = false;
+            } else {
+                // Keep dropdown disabled if no sites exist
+                siteNameSelect.disabled = true;
+            }
             
             // Clear existing options and add new ones
             siteNameSelect.innerHTML = '';
             siteNameSelect.appendChild(fragment);
-            siteNameSelect.disabled = false;
             
         } catch (error) {
             console.error('Error loading site names:', error);
+            // Keep dropdown disabled on error
+            siteNameSelect.disabled = true;
         }
     }
 

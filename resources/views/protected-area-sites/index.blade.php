@@ -15,10 +15,27 @@
     <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
 
     <!-- Styles -->
-    @vite(['resources/css/app.css', 'resources/css/sidebar.css'])
+    @vite(['resources/css/app.css', 'resources/css/sidebar.css', 'resources/css/protected-area-sites.css', 'resources/css/protected-area-sites-modal.css'])
     
     <!-- Scripts -->
-    @vite(['resources/js/bootstrap.js', 'resources/js/sidebar.js'])
+    @vite(['resources/js/bootstrap.js', 'resources/js/sidebar.js', 'resources/js/protected-area-sites-modal.js'])
+    
+    <!-- Global JavaScript Variables -->
+    <script>
+        window.csrfToken = '{{ csrf_token() }}';
+        // Pass protected areas data to JavaScript for modal dropdowns
+        window.protectedAreas = @json(\App\Models\ProtectedArea::orderBy('name')->get(['id', 'name', 'code']));
+        
+        // Debug: Log the loaded data
+        console.log('Protected Areas Data Loaded:', window.protectedAreas);
+        
+        // Global toggleSidebar function for compatibility
+        function toggleSidebar() {
+            if (window.sidebarManager) {
+                window.sidebarManager.toggleSidebar();
+            }
+        }
+    </script>
 </head>
 <body class="antialiased bg-gray-50">
     <!-- Mobile Menu Toggle -->
@@ -280,13 +297,13 @@
                             <div class="relative">
                                 <input 
                                     type="text" 
-                                    id="site-search" 
+                                    id="protected-area-sites-search" 
                                     name="search"
                                     value="{{ request('search', '') }}"
                                     class="w-full sm:w-64 pl-8 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
                                     placeholder="Search protected area sites..."
                                     autocomplete="off"
-                                    oninput="filterSitesTable()"
+                                    oninput="filterProtectedAreaSitesTable()"
                                 />
 
                                 <!-- Search Icon -->
@@ -296,12 +313,10 @@
 
                                 <!-- Clear Button -->
                                 <button
-                                    id="site-search-clear"
+                                    id="protected-area-sites-search-clear"
                                     type="button"
-                                    class="absolute right-0 top-0 bottom-0 flex items-center justify-center w-8
-                                           text-gray-400 hover:text-gray-600 hidden bg-transparent"
-                                    onclick="clearSiteSearch()"
-                                    style="right: 2px;"
+                                    class="protected-area-sites-search-clear text-gray-400 hover:text-gray-600 hidden bg-transparent"
+                                    onclick="clearProtectedAreaSitesSearch()"
                                 >
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -315,7 +330,7 @@
                             <h2 class="text-lg font-semibold text-gray-900">
                                 Protected Area Sites ({{ $siteNames->total() }} records)
                             </h2>
-                            <button onclick="openEditSiteModal()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg inline-flex items-center space-x-2 transition-colors flex-shrink-0">
+                            <button onclick="openAddProtectedAreaSitesModal()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg inline-flex items-center space-x-2 transition-colors flex-shrink-0">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                                 </svg>
@@ -349,9 +364,9 @@
                             </th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="protected-area-sites-table-body">
                         @forelse ($siteNames as $site)
-                            <tr class="hover:bg-gray-50">
+                            <tr class="hover:bg-gray-50 protected-area-sites-row" data-site-id="{{ $site->id }}">
                                 <td>
                                     <div class="font-medium text-gray-900">
                                         {{ $site->name }}
@@ -374,7 +389,7 @@
                                 <td>
                                     <div>
                                         @if($site->station_code)
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-mono bg-gray-100 text-gray-800">
+                                            <span class="station-code-badge">
                                                 {{ $site->station_code }}
                                             </span>
                                         @else
@@ -394,11 +409,11 @@
                                 </td>
                                 <td>
                                     @if($site->protectedArea)
-                                        <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                        <span class="status-badge status-badge-active">
                                             Active
                                         </span>
                                     @else
-                                        <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+                                        <span class="status-badge status-badge-unassigned">
                                             Unassigned
                                         </span>
                                     @endif
@@ -406,8 +421,8 @@
                                 <td>
                                     <div class="flex items-center gap-1 sm:gap-2 action-buttons-container">
                                         <!-- View Button -->
-                                        <button type="button" onclick="openViewSiteModal({{ $site->id }})" 
-                                           class="text-blue-600 hover:text-blue-800 p-1.5 sm:p-1 rounded hover:bg-blue-50 transition-colors flex-shrink-0"
+                                        <button type="button" onclick="openViewProtectedAreaSitesModal({{ $site->id }})" 
+                                           class="protected-area-sites-action-btn view p-1.5 sm:p-1 rounded transition-colors flex-shrink-0"
                                            title="View Site">
                                             <svg class="w-4 h-4 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
@@ -416,8 +431,8 @@
                                         </button>
                                         
                                         <!-- Edit Button -->
-                                        <button type="button" onclick="openEditSiteModal({{ $site->id }})" 
-                                           class="text-green-600 hover:text-green-800 p-1.5 sm:p-1 rounded hover:bg-green-50 transition-colors flex-shrink-0"
+                                        <button type="button" onclick="openEditProtectedAreaSitesModal({{ $site->id }})" 
+                                           class="protected-area-sites-action-btn edit p-1.5 sm:p-1 rounded transition-colors flex-shrink-0"
                                            title="Edit Site">
                                             <svg class="w-4 h-4 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
@@ -425,18 +440,13 @@
                                         </button>
                                         
                                         <!-- Delete Button -->
-                                        <form action="{{ route('protected-area-sites.destroy', $site->id) }}" method="POST" style="display: inline;">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="button" 
-                                                   onclick="confirmDeleteSite(this)"
-                                                   class="text-red-600 hover:text-red-800 p-1.5 sm:p-1 rounded hover:bg-red-50 transition-colors flex-shrink-0"
-                                                   title="Delete Site">
-                                                <svg class="w-4 h-4 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                                </svg>
-                                            </button>
-                                        </form>
+                                        <button type="button" onclick="openDeleteProtectedAreaSitesModal({{ $site->id }})" 
+                                           class="protected-area-sites-action-btn delete p-1.5 sm:p-1 rounded transition-colors flex-shrink-0"
+                                           title="Delete Site">
+                                            <svg class="w-4 h-4 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                            </svg>
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
@@ -506,481 +516,12 @@
         </main>
     </div>
 
-<script>
-function toggleSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    const overlay = document.querySelector('.sidebar-overlay');
-    
-    sidebar.classList.toggle('-translate-x-full');
-    overlay.classList.toggle('hidden');
-}
-
-// Close sidebar when clicking outside on mobile
-document.addEventListener('click', function(event) {
-    const sidebar = document.getElementById('sidebar');
-    const toggle = document.querySelector('.mobile-menu-toggle');
-    
-    if (window.innerWidth < 1024 && !sidebar.contains(event.target) && !toggle.contains(event.target)) {
-        sidebar.classList.add('-translate-x-full');
-        document.querySelector('.sidebar-overlay').classList.add('hidden');
-    }
-});
-
-// Handle window resize
-window.addEventListener('resize', function() {
-    const sidebar = document.getElementById('sidebar');
-    const overlay = document.querySelector('.sidebar-overlay');
-    
-    if (window.innerWidth >= 1024) {
-        sidebar.classList.remove('-translate-x-full');
-        overlay.classList.add('hidden');
-    } else {
-        sidebar.classList.add('-translate-x-full');
-    }
-});
-
-// View Site Modal Functions
-function openViewSiteModal(siteId) {
-    console.log('Opening view modal for site:', siteId);
-    
-    // Fetch site data
-    fetch(`/api/protected-area-sites/${siteId}`, {
-        method: 'GET',
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-            'X-Requested-With': 'XMLHttpRequest',
-            'Accept': 'application/json'
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        console.log('Site data:', data);
-        
-        if (data.success) {
-            // Populate modal with site data
-            populateViewSiteModal(data.siteName);
-            // Show modal
-            const modal = document.getElementById('viewSiteModal');
-            modal.classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
-        } else {
-            alert(data.error || 'Failed to load site data.');
-        }
-    })
-    .catch(error => {
-        console.error('Error fetching site:', error);
-        alert('An error occurred while loading site data.');
+    <script>
+    // Initialize modal system when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        // Log that protected areas data is available
+        console.log('Protected areas loaded:', window.protectedAreas?.length || 0, 'areas');
     });
-}
-
-function closeViewSiteModal() {
-    const modal = document.getElementById('viewSiteModal');
-    modal.classList.add('hidden');
-    document.body.style.overflow = 'auto';
-}
-
-function populateViewSiteModal(site) {
-    const modalContent = document.getElementById('viewSiteModalContent');
-    
-    modalContent.innerHTML = `
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-            <!-- Site Name -->
-            <div class="sm:col-span-2">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Site Name</label>
-                <div class="px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg">
-                    <p class="text-gray-900">${site.name || 'N/A'}</p>
-                </div>
-            </div>
-
-            <!-- Station Code -->
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Station Code</label>
-                <div class="px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg">
-                    <p class="text-gray-900">${site.station_code || 'N/A'}</p>
-                </div>
-            </div>
-
-            <!-- Protected Area -->
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Protected Area</label>
-                <div class="px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg">
-                    ${site.protected_area ? `
-                        <p class="text-gray-900">${site.protected_area.name || 'N/A'}</p>
-                        <p class="text-xs text-gray-500">${site.protected_area.code || ''}</p>
-                    ` : '<p class="text-gray-400">Not assigned</p>'}
-                </div>
-            </div>
-
-            <!-- Status -->
-            <div class="sm:col-span-2">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                <div class="px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg">
-                    <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        site.status === 'Active' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-gray-100 text-gray-800'
-                    }">
-                        ${site.status || 'Unassigned'}
-                    </span>
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-// Edit Site Modal Functions
-function openEditSiteModal(siteId) {
-    console.log('Opening edit modal for site:', siteId);
-    
-    // Fetch site data
-    fetch(`/api/protected-area-sites/${siteId}`, {
-        method: 'GET',
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-            'X-Requested-With': 'XMLHttpRequest',
-            'Accept': 'application/json'
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        console.log('Site data:', data);
-        
-        if (data.success) {
-            // Populate form with site data
-            document.getElementById('editSiteId').value = data.siteName.id;
-            document.getElementById('editSiteName').value = data.siteName.name || '';
-            document.getElementById('editSiteProtectedAreaId').value = data.siteName.protected_area_id || '';
-            
-            // Load protected areas for dropdown
-            loadProtectedAreasForEdit();
-            
-            // Show modal
-            const modal = document.getElementById('editSiteModal');
-            modal.classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
-        } else {
-            alert(data.error || 'Failed to load site data.');
-        }
-    })
-    .catch(error => {
-        console.error('Error fetching site:', error);
-        alert('An error occurred while loading site data.');
-    });
-}
-
-function loadProtectedAreasForEdit() {
-    // Fetch protected areas for dropdown
-    fetch('/protected-areas', {
-        method: 'GET',
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-            'X-Requested-With': 'XMLHttpRequest',
-            'Accept': 'application/json'
-        }
-    })
-    .then(response => response.text())
-    .then(html => {
-        // Parse HTML to extract protected areas (this is a simplified approach)
-        // In a real app, you'd have an API endpoint for this
-        const select = document.getElementById('editSiteProtectedAreaId');
-        // Protected areas should be loaded from the page data or via API
-        // For now, we'll keep the existing options
-    })
-    .catch(error => {
-        console.error('Error loading protected areas:', error);
-    });
-}
-
-function closeEditSiteModal() {
-    const modal = document.getElementById('editSiteModal');
-    modal.classList.add('hidden');
-    document.body.style.overflow = 'auto';
-    // Reset form
-    document.getElementById('editSiteForm').reset();
-}
-
-function submitEditSiteForm() {
-    const form = document.getElementById('editSiteForm');
-    const siteId = document.getElementById('editSiteId').value;
-    
-    // Disable submit button
-    const submitBtn = document.getElementById('editSiteSubmitBtn');
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Updating...';
-    
-    fetch(`/protected-area-sites/${siteId}`, {
-        method: 'POST',
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-            'X-Requested-With': 'XMLHttpRequest',
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            _method: 'PUT',
-            name: document.getElementById('editSiteName').value,
-            protected_area_id: document.getElementById('editSiteProtectedAreaId').value || null
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Close modal and reload page
-            closeEditSiteModal();
-            window.location.reload();
-        } else {
-            alert(data.error || 'Failed to update site.');
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Update';
-        }
-    })
-    .catch(error => {
-        console.error('Error updating site:', error);
-        alert('An error occurred while updating site.');
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Update';
-    });
-}
-
-// Delete confirmation modal functions for sites
-let deleteSiteForm = null;
-
-function confirmDeleteSite(button) {
-    console.log('Delete confirmation triggered for site');
-    
-    // Get the form from the button
-    deleteSiteForm = button.closest('form');
-    console.log('Form action:', deleteSiteForm.action);
-    console.log('Form method:', deleteSiteForm.method);
-    
-    // Open the confirmation modal
-    openDeleteSiteModal();
-}
-
-function openDeleteSiteModal() {
-    const modal = document.getElementById('deleteSiteConfirmModal');
-    modal.classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
-}
-
-function closeDeleteSiteModal() {
-    const modal = document.getElementById('deleteSiteConfirmModal');
-    modal.classList.add('hidden');
-    document.body.style.overflow = 'auto';
-    deleteSiteForm = null;
-}
-
-function confirmDeleteSiteAction() {
-    console.log('=== DELETE SITE ACTION STARTED ===');
-    console.log('deleteSiteForm:', deleteSiteForm);
-    
-    if (!deleteSiteForm) {
-        console.error('No deleteSiteForm found!');
-        return;
-    }
-    
-    // Prevent multiple submissions
-    const confirmBtn = document.getElementById('confirmDeleteSiteBtn');
-    console.log('confirmBtn:', confirmBtn);
-    
-    if (confirmBtn.disabled) {
-        console.log('Button already disabled, returning');
-        return;
-    }
-    
-    console.log('User confirmed deletion, submitting form');
-    
-    // Disable button to prevent multiple submissions
-    confirmBtn.disabled = true;
-    confirmBtn.textContent = 'Deleting...';
-    
-    // Submit the form
-    fetch(deleteSiteForm.action, {
-        method: 'POST',
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-            'X-Requested-With': 'XMLHttpRequest',
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            _method: 'DELETE'
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        console.log('Delete response:', data);
-        
-        if (data.success) {
-            // Close modal and reload page
-            closeDeleteSiteModal();
-            window.location.reload();
-        } else {
-            alert(data.error || 'Failed to delete site.');
-            // Re-enable button
-            confirmBtn.disabled = false;
-            confirmBtn.textContent = 'Yes';
-        }
-    })
-    .catch(error => {
-        console.error('Error deleting site:', error);
-        alert('An error occurred while deleting site.');
-        // Re-enable button
-        confirmBtn.disabled = false;
-        confirmBtn.textContent = 'Yes';
-    });
-}
-
-// Clear filters (status + sort)
-function clearSiteFilters() {
-    const status = document.getElementById('status');
-    const sort = document.getElementById('sort');
-    if (status) status.value = '';
-    if (sort) sort.value = 'name';
-
-    // Submit the form to reset filters
-    status.closest('form').submit();
-}
-
-// Client-side search over sites table
-function filterSitesTable() {
-    const input = document.getElementById('site-search');
-    const clearBtn = document.getElementById('site-search-clear');
-    const filter = input.value.toLowerCase();
-    const rows = document.querySelectorAll('.responsive-table tbody tr');
-
-    if (clearBtn) {
-        clearBtn.classList.toggle('hidden', filter.length === 0);
-    }
-
-    rows.forEach(row => {
-        const text = row.textContent.toLowerCase();
-        row.style.display = text.includes(filter) ? '' : 'none';
-    });
-}
-
-function clearSiteSearch() {
-    const input = document.getElementById('site-search');
-    input.value = '';
-    filterSitesTable();
-}
-</script>
-
-<!-- View Site Modal -->
-<div id="viewSiteModal" class="hidden fixed inset-0 bg-gray-800 bg-opacity-90 z-50 flex items-center justify-center p-2 sm:p-4" style="background-color: rgba(31, 41, 55, 0.9) !important;">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] sm:max-h-[85vh] overflow-y-auto">
-        <div class="px-8 py-6 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-blue-600 to-blue-700 rounded-t-xl">
-            <h3 class="text-xl font-bold text-white">Site Details</h3>
-            <button type="button" onclick="closeViewSiteModal()" class="text-gray-200 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-lg">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-            </button>
-        </div>
-        <div class="px-8 py-8">
-            <div id="viewSiteModalContent" class="space-y-6"></div>
-        </div>
-        <div class="px-8 py-6 border-t border-gray-200 bg-gray-50 rounded-b-xl flex items-center justify-end">
-            <button type="button" onclick="closeViewSiteModal()" 
-                    class="px-6 py-3 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 rounded-lg transition-colors border border-gray-300">
-                Close
-            </button>
-        </div>
-    </div>
-</div>
-
-<!-- Edit Site Modal -->
-<div id="editSiteModal" class="hidden fixed inset-0 bg-gray-800 bg-opacity-90 z-50 flex items-center justify-center p-2 sm:p-4" style="background-color: rgba(31, 41, 55, 0.9) !important;">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] sm:max-h-[85vh] overflow-y-auto">
-        <div class="px-8 py-6 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-green-600 to-green-700 rounded-t-xl">
-            <h3 class="text-xl font-bold text-white">Edit Site</h3>
-            <button type="button" onclick="closeEditSiteModal()" class="text-gray-200 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-lg">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-            </button>
-        </div>
-        <form id="editSiteForm" onsubmit="event.preventDefault(); submitEditSiteForm();">
-            <input type="hidden" id="editSiteId" name="id">
-            <div class="px-8 py-8 space-y-6">
-                <div>
-                    <label for="editSiteName" class="block text-sm font-semibold text-gray-700 mb-2">Site Name <span class="text-red-500">*</span></label>
-                    <input type="text" id="editSiteName" name="name" required
-                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-base">
-                </div>
-                <div>
-                    <label for="editSiteProtectedAreaId" class="block text-sm font-semibold text-gray-700 mb-2">Protected Area</label>
-                    <select id="editSiteProtectedAreaId" name="protected_area_id"
-                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-base">
-                        <option value="">Select Protected Area (Optional)</option>
-                        @foreach(\App\Models\ProtectedArea::orderBy('name')->get() as $area)
-                            <option value="{{ $area->id }}">{{ $area->name }} ({{ $area->code }})</option>
-                        @endforeach
-                    </select>
-                </div>
-            </div>
-            <div class="px-8 py-6 border-t border-gray-200 bg-gray-50 rounded-b-xl flex items-center justify-end space-x-3">
-                <button type="button" onclick="closeEditSiteModal()" 
-                        class="px-6 py-3 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 rounded-lg transition-colors border border-gray-300">
-                    Cancel
-                </button>
-                <button type="submit" id="editSiteSubmitBtn"
-                        class="px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 rounded-lg transition-all shadow-md hover:shadow-lg">
-                    Update
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- Delete Site Confirmation Modal -->
-<div id="deleteSiteConfirmModal" class="hidden fixed inset-0 bg-gray-800 bg-opacity-90 z-50 flex items-center justify-center p-2 sm:p-4" style="background-color: rgba(31, 41, 55, 0.9) !important;">
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md">
-        <div class="px-8 py-6 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-red-600 to-red-700 rounded-t-xl">
-            <h3 class="text-xl font-bold text-white">Confirm Deletion</h3>
-            <button onclick="closeDeleteSiteModal()" class="text-gray-200 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-lg">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-            </button>
-        </div>
-        <div class="px-8 py-8">
-            <div class="flex items-center space-x-4">
-                <div class="flex-shrink-0">
-                    <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                        <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-                        </svg>
-                    </div>
-                </div>
-                <div>
-                    <p class="text-gray-900 font-semibold text-base mb-1">Are you sure you want to delete this site?</p>
-                    <p class="text-sm text-gray-600">This action cannot be undone.</p>
-                </div>
-            </div>
-        </div>
-        <div class="px-8 py-6 border-t border-gray-200 bg-gray-50 rounded-b-xl flex items-center justify-end space-x-3">
-            <button type="button" onclick="closeDeleteSiteModal()" 
-                    class="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 rounded-lg transition-colors border border-gray-300">
-                Cancel
-            </button>
-            <button type="button" id="confirmDeleteSiteBtn" 
-                    onclick="confirmDeleteSiteAction()"
-                    class="px-5 py-2.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors shadow-md hover:shadow-lg">
-                Delete
-            </button>
-        </div>
-    </div>
-</div>
+    </script>
 </body>
 </html>

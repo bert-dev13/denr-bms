@@ -34,6 +34,11 @@ class SpeciesObservationController extends Controller
      */
     public function index(Request $request)
     {
+        // Handle export requests
+        if ($request->has('export') || $request->has('print')) {
+            return $this->handleExport($request);
+        }
+        
         // Log request parameters for debugging
         \Log::info('Species Observation Index Request:', [
             'protected_area_id' => $request->protected_area_id,
@@ -326,7 +331,7 @@ class SpeciesObservationController extends Controller
     {
         $protectedArea = ProtectedArea::find($protectedAreaId);
         
-        if ($protectedArea && ($protectedArea->code === 'PPLS' || $protectedArea->code === 'MPL')) {
+        if ($protectedArea) {
             // Use the proper relationship to get site names for this protected area
             $siteNames = SiteName::where('protected_area_id', $protectedAreaId)
                 ->orderBy('name')
@@ -1083,5 +1088,279 @@ class SpeciesObservationController extends Controller
         ];
 
         return $tableModelMap[$tableName] ?? null;
+    }
+
+    /**
+     * Handle export requests for different formats
+     */
+    private function handleExport(Request $request)
+    {
+        // Get the same filtered data as the index method but without pagination
+        $query = null;
+        $batanesQuery = $this->buildFilteredQuery(BmsSpeciesObservation::class, $request);
+        $fuyotQuery = $this->buildFilteredQuery(FuyotObservation::class, $request);
+        $quirinoQuery = $this->buildFilteredQuery(QuirinoObservation::class, $request);
+        $palauiQuery = $this->buildFilteredQuery(PalauiObservation::class, $request);
+        $buaaQuery = $this->buildFilteredQuery(BauaObservation::class, $request);
+        $wangagQuery = $this->buildFilteredQuery(WangagObservation::class, $request);
+        
+        // For MPL, include all sub-tables
+        $magapitQuery = $this->buildFilteredQuery(MagapitObservation::class, $request);
+        $marianoQuery = $this->buildFilteredQuery(MarianoObservation::class, $request);
+        $madupapaQuery = $this->buildFilteredQuery(MadupapaObservation::class, $request);
+        
+        // Check if we need to filter Mariano and Madupapa based on site selection
+        if ($request->filled('protected_area_id') && $request->filled('site_name') && $request->site_name !== 'no_specific_site') {
+            $siteName = SiteName::find($request->site_name);
+            if ($siteName) {
+                if (strpos($siteName->name, 'San Mariano') !== false) {
+                    $marianoQuery = $this->buildFilteredQuery(MarianoObservation::class, $request);
+                    $madupapaQuery = null;
+                } elseif (strpos($siteName->name, 'Madupapa') !== false) {
+                    $madupapaQuery = $this->buildFilteredQuery(MadupapaObservation::class, $request);
+                    $marianoQuery = null;
+                }
+            }
+        }
+        
+        // Handle "no_specific_site" selection for MPL
+        if ($request->filled('protected_area_id') && $request->site_name === 'no_specific_site') {
+            $protectedArea = ProtectedArea::find($request->protected_area_id);
+            if ($protectedArea && $protectedArea->code === 'MPL') {
+                $marianoQuery = null;
+                $madupapaQuery = null;
+            }
+        }
+        
+        // Special handling for San Mariano and Madupapa sites
+        if ($request->filled('site_name') && $request->site_name !== 'no_specific_site') {
+            $siteName = SiteName::find($request->site_name);
+            if ($siteName) {
+                $stationCode = $siteName->getStationCodeAttribute();
+                if ($stationCode) {
+                    if (strpos($siteName->name, 'San Mariano') !== false) {
+                        $query = $this->buildFilteredQuery(MarianoObservation::class, $request);
+                    } elseif (strpos($siteName->name, 'Madupapa') !== false) {
+                        $query = $this->buildFilteredQuery(MadupapaObservation::class, $request);
+                    } else {
+                        $query = null;
+                    }
+                }
+            }
+        } else {
+            $query = null;
+        }
+        
+        $madreQuery = $this->buildFilteredQuery(MadreObservation::class, $request);
+        $tumauiniQuery = $this->buildFilteredQuery(TumauiniObservation::class, $request);
+        $banganQuery = $this->buildFilteredQuery(BanganObservation::class, $request);
+        $salinasQuery = $this->buildFilteredQuery(SalinasObservation::class, $request);
+        $dupaxQuery = $this->buildFilteredQuery(DupaxObservation::class, $request);
+        $casecnanQuery = $this->buildFilteredQuery(CasecnanObservation::class, $request);
+        $dipaniongQuery = $this->buildFilteredQuery(DipaniongObservation::class, $request);
+        
+        // Add PPLS site-specific tables
+        $toyotaQuery = $this->buildTableQuery('toyota_tbl', $request);
+        $sanRoqueQuery = $this->buildTableQuery('roque_tbl', $request);
+        $mangaQuery = $this->buildTableQuery('manga_tbl', $request);
+        $quibalQuery = $this->buildTableQuery('quibal_tbl', $request);
+        
+        // Combine all queries with union
+        if ($query) {
+            $observations = $query->orderBy('patrol_year', 'desc')
+                ->orderBy('patrol_semester', 'desc')
+                ->orderBy('station_code')
+                ->get();
+        } else {
+            $allQueries = [
+                $batanesQuery, $fuyotQuery, $quirinoQuery, $palauiQuery, 
+                $buaaQuery, $wangagQuery, $magapitQuery, $marianoQuery, 
+                $madupapaQuery, $madreQuery, $tumauiniQuery, $banganQuery, 
+                $salinasQuery, $dupaxQuery, $casecnanQuery, $dipaniongQuery, 
+                $toyotaQuery, $sanRoqueQuery, $mangaQuery, $quibalQuery
+            ];
+            
+            $allQueries = array_filter($allQueries, function($query) {
+                return $query !== null;
+            });
+            
+            $allQueries = array_values($allQueries);
+            
+            if (empty($allQueries)) {
+                $observations = collect();
+            } else {
+                $observations = $allQueries[0];
+                for ($i = 1; $i < count($allQueries); $i++) {
+                    $observations = $observations->union($allQueries[$i]);
+                }
+                $observations = $observations->orderBy('patrol_year', 'desc')
+                    ->orderBy('patrol_semester', 'desc')
+                    ->orderBy('station_code')
+                    ->get();
+            }
+        }
+
+        // Load protected area relationships
+        $observations->each(function ($observation) {
+            $observation->load('protectedArea');
+        });
+
+        // Handle different export formats
+        if ($request->has('print')) {
+            return $this->exportPrint($observations, $request);
+        } elseif ($request->has('excel')) {
+            return $this->exportExcel($observations, $request);
+        } elseif ($request->has('pdf')) {
+            return $this->exportPdf($observations, $request);
+        }
+        
+        return back()->with('error', 'Invalid export format');
+    }
+
+    /**
+     * Export to print-friendly view
+     */
+    private function exportPrint($observations, Request $request)
+    {
+        // Get filter information for title
+        $filterInfo = $this->getFilterInfo($request);
+        
+        return view('species-observations.print', compact('observations', 'filterInfo'));
+    }
+
+    /**
+     * Export to Excel
+     */
+    private function exportExcel($observations, Request $request)
+    {
+        $filename = 'species-observations-' . date('Y-m-d-H-i-s') . '.csv';
+        
+        $headers = [
+            'Content-Type' => 'application/vnd.ms-excel',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ];
+
+        $callback = function() use ($observations) {
+            $file = fopen('php://output', 'w');
+            
+            // Add BOM for UTF-8
+            fwrite($file, "\xEF\xBB\xBF");
+            
+            // CSV header
+            fputcsv($file, [
+                'Protected Area',
+                'Station Code', 
+                'Transaction Code',
+                'Patrol Year',
+                'Patrol Semester',
+                'Bio Group',
+                'Common Name',
+                'Scientific Name',
+                'Count'
+            ]);
+            
+            // Data rows
+            foreach ($observations as $observation) {
+                fputcsv($file, [
+                    $observation->protectedArea->name ?? 'N/A',
+                    $observation->station_code ?? 'N/A',
+                    $observation->transaction_code ?? 'N/A',
+                    $observation->patrol_year ?? 'N/A',
+                    $observation->patrol_semester_text ?? 'N/A',
+                    ucfirst($observation->bio_group ?? 'N/A'),
+                    $observation->common_name ?? 'N/A',
+                    $observation->scientific_name ?? 'N/A',
+                    $observation->recorded_count ?? 0
+                ]);
+            }
+            
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Export to PDF
+     */
+    private function exportPdf($observations, Request $request)
+    {
+        // Limit the number of records for PDF to prevent memory issues
+        $maxRecords = 100;
+        $totalRecords = $observations->count();
+        
+        if ($totalRecords > $maxRecords) {
+            return back()->with('error', "PDF export is limited to {$maxRecords} records. Your dataset has {$totalRecords} records. Please use Excel export for larger datasets.");
+        }
+        
+        $filename = 'species-observations-' . date('Y-m-d-H-i-s') . '.pdf';
+        
+        // Get filter information for title
+        $filterInfo = $this->getFilterInfo($request);
+        
+        // Configure DomPDF for memory efficiency
+        $options = [
+            'defaultFont' => 'Arial',
+            'isRemoteEnabled' => true,
+            'isHtml5ParserEnabled' => true,
+            'isPhpEnabled' => false,
+            'debugPng' => false,
+            'debugKeepTemp' => false,
+            'debugCss' => false,
+            'debugLayout' => false,
+            'debugLayoutLines' => false,
+            'debugLayoutBlocks' => false,
+            'debugLayoutInline' => false,
+            'debugLayoutPaddingBox' => false,
+        ];
+        
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::setOptions($options)
+            ->loadView('species-observations.pdf', compact('observations', 'filterInfo'));
+        
+        return $pdf->download($filename);
+    }
+
+    /**
+     * Get filter information for export titles
+     */
+    private function getFilterInfo(Request $request)
+    {
+        $filterInfo = [];
+        
+        // Protected Area filter
+        if ($request->filled('protected_area_id')) {
+            $protectedArea = ProtectedArea::find($request->protected_area_id);
+            if ($protectedArea) {
+                $filterInfo['protected_area'] = $protectedArea->name;
+            }
+        }
+        
+        // Site Name filter
+        if ($request->filled('site_name') && $request->site_name !== 'no_specific_site') {
+            $siteName = SiteName::find($request->site_name);
+            if ($siteName) {
+                $filterInfo['site_name'] = $siteName->name;
+            }
+        } elseif ($request->site_name === 'no_specific_site') {
+            $filterInfo['site_name'] = 'No Specific Site';
+        }
+        
+        // Bio Group filter
+        if ($request->filled('bio_group')) {
+            $filterInfo['bio_group'] = ucfirst($request->bio_group);
+        }
+        
+        // Year filter
+        if ($request->filled('patrol_year')) {
+            $filterInfo['patrol_year'] = $request->patrol_year;
+        }
+        
+        // Semester filter
+        if ($request->filled('patrol_semester')) {
+            $semesters = [1 => '1st', 2 => '2nd'];
+            $filterInfo['patrol_semester'] = $semesters[$request->patrol_semester] ?? $request->patrol_semester;
+        }
+        
+        return $filterInfo;
     }
 }

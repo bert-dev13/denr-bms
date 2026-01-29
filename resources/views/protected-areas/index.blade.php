@@ -15,7 +15,7 @@
     <link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
 
     <!-- Styles -->
-    @vite(['resources/css/app.css', 'resources/css/sidebar.css', 'resources/css/protected-area-modal.css'])
+    @vite(['resources/css/app.css', 'resources/css/sidebar.css', 'resources/css/protected-areas.css', 'resources/css/protected-area-modal.css'])
     
     <!-- Scripts -->
     @vite(['resources/js/bootstrap.js', 'resources/js/sidebar.js', 'resources/js/protected-area-modal.js'])
@@ -307,7 +307,6 @@
                                         class="absolute right-0 top-0 bottom-0 flex items-center justify-center w-8
                                                text-gray-400 hover:text-gray-600 hidden bg-transparent"
                                         onclick="clearProtectedAreaSearch()"
-                                        style="right: 2px;"
                                     >
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -394,7 +393,6 @@
                                             <!-- View Button -->
                                             <button type="button" onclick="openViewModal({{ $area->id }})" 
                                                class="action-btn view p-1.5 sm:p-1 rounded transition-colors flex-shrink-0"
-                                               style="color: #3b82f6 !important; background: none !important; border: none !important; cursor: pointer !important;"
                                                title="View Protected Area">
                                                 <svg class="w-4 h-4 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
@@ -405,7 +403,6 @@
                                              <!-- Edit Button -->
                                             <button type="button" onclick="openEditModal({{ $area->id }})" 
                                                class="action-btn edit p-1.5 sm:p-1 rounded transition-colors flex-shrink-0"
-                                               style="color: #10b981 !important; background: none !important; border: none !important; cursor: pointer !important;"
                                                title="Edit Protected Area">
                                                 <svg class="w-4 h-4 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
@@ -415,7 +412,6 @@
                                             <!-- Delete Button -->
                                             <button type="button" onclick="openDeleteModal({{ $area->id }})" 
                                                class="action-btn delete p-1.5 sm:p-1 rounded transition-colors flex-shrink-0"
-                                               style="color: #ef4444 !important; background: none !important; border: none !important; cursor: pointer !important;"
                                                title="Delete Protected Area">
                                                 <svg class="w-4 h-4 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
